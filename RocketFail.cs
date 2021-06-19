@@ -5,13 +5,14 @@ using Random = System.Random;
 
 namespace Oxide.Plugins
 {
-    [Info("RocketFail", "bmgjet", "1.0.1")]
+    [Info("RocketFail", "bmgjet", "1.0.2")]
     [Description("Player takes damage when launcher breaks.")]
     public class RocketFail : RustPlugin
     {
         #region Vars
         private const string permUse = "RocketFail.use";
         private PluginConfig config;
+        private Random random = new Random();
         #endregion
 
         #region Language
@@ -26,8 +27,7 @@ namespace Oxide.Plugins
         private void message(BasePlayer chatplayer, string key, params object[] args)
         {
             if (chatplayer == null) { return; }
-            var message = string.Format(lang.GetMessage(key, this, chatplayer.UserIDString), args);
-            chatplayer.ChatMessage(message);
+            chatplayer.ChatMessage(string.Format(lang.GetMessage(key, this, chatplayer.UserIDString), args));
         }
         #endregion
 
@@ -88,15 +88,15 @@ namespace Oxide.Plugins
         {
             if (player.IPlayer.HasPermission(permUse))
             {
-                var weapon = player.GetActiveItem().GetHeldEntity() as BaseProjectile;
+                var weapon = player.GetActiveItem();
+                var weaponProjectile = weapon.GetHeldEntity() as BaseProjectile;
                 if (weapon == null || baseEntity2 == null || player == null) return;
-                float weaponcondition = player.GetActiveItem().condition;
+                float weaponcondition = weapon.condition;
                 string Ammotype = baseEntity2.ShortPrefabName;
                 if (config.Randomise)
                 {
                     if (weaponcondition <= config.RandomiseTrigger)
                     {
-                        Random random = new Random();
                         if (random.Next(0, config.RandomiseChance) == random.Next(0, config.RandomiseChance)) { weaponcondition = 0; }
                     }
                 }
@@ -115,16 +115,23 @@ namespace Oxide.Plugins
                     var finaleffect = new Effect("assets/bundled/prefabs/fx/explosions/explosion_01.prefab", player, 0, Vector3.zero, Vector3.forward);
                     EffectNetwork.Send(finaleffect, player.net.connection);
                     EffectNetwork.Send(finaleffectExternal, player.net.connection);
+                    
                     List<BasePlayer> ClosePlayers = new List<BasePlayer>();
                     Vis.Entities<BasePlayer>(player.transform.position, 30f, ClosePlayers); // Get nearby players to play effect to.
+                    
                     foreach (BasePlayer EffectPlayer in ClosePlayers)
                     {
+                        if (!EffectPlayer.IsConnected)
+                        {
+                            continue;
+                        }
                         EffectNetwork.Send(finaleffect, EffectPlayer.net.connection);
                         EffectNetwork.Send(finaleffectExternal, EffectPlayer.net.connection);
                     }
                     message(player, "exploded");
+
                     player.GetActiveItem().condition = 0;
-                    weapon.UpdateItemCondition();
+                    weaponProjectile.UpdateItemCondition();
                     player.Hurt(GiveDamage);
                     player.metabolism.bleeding.SetValue(config.BleedHurt);
                 }
