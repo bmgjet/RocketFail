@@ -5,7 +5,7 @@ using Random = System.Random;
 
 namespace Oxide.Plugins
 {
-    [Info("RocketFail", "bmgjet", "1.0.0")]
+    [Info("RocketFail", "bmgjet", "1.0.1")]
     [Description("Player takes damage when launcher breaks.")]
     public class RocketFail : RustPlugin
     {
@@ -111,8 +111,17 @@ namespace Oxide.Plugins
                         case "40mm_grenade_he": GiveDamage = config.HeHurt; break;
                         case "40mm_grenade_smoke": GiveDamage = config.SmokeHurt; break;
                     }
+                    var finaleffectExternal = new Effect("assets/bundled/prefabs/fx/gas_explosion_small.prefab", player, 0, Vector3.zero, Vector3.forward);
                     var finaleffect = new Effect("assets/bundled/prefabs/fx/explosions/explosion_01.prefab", player, 0, Vector3.zero, Vector3.forward);
                     EffectNetwork.Send(finaleffect, player.net.connection);
+                    EffectNetwork.Send(finaleffectExternal, player.net.connection);
+                    List<BasePlayer> ClosePlayers = new List<BasePlayer>();
+                    Vis.Entities<BasePlayer>(player.transform.position, 30f, ClosePlayers); // Get nearby players to play effect to.
+                    foreach (BasePlayer EffectPlayer in ClosePlayers)
+                    {
+                        EffectNetwork.Send(finaleffect, EffectPlayer.net.connection);
+                        EffectNetwork.Send(finaleffectExternal, EffectPlayer.net.connection);
+                    }
                     message(player, "exploded");
                     player.GetActiveItem().condition = 0;
                     weapon.UpdateItemCondition();
